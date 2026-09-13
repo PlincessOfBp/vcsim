@@ -47,6 +47,7 @@
 
   var $ = function (sel) { return document.querySelector(sel); };
   function el(id) { return document.getElementById(id); }
+  var footerBound = false;
 
   ui.attach = function (world) {
     ui.world = world;
@@ -59,33 +60,37 @@
   function bindTabs() {}
 
   function bindFooter() {
+    // attach()가 여러 번 호출돼도 리스너는 페이지 수명 동안 1회만 등록
+    // (핸들러는 함수 호출 시점의 ui.world를 읽음 → 중복 등록 시 턴 2회 진행됨)
+    if (footerBound) return;
+    footerBound = true;
     var endBtn = el("btnEndTurn");
-    if (endBtn) endBtn.addEventListener("click", function () {
-      if (!ui.world || !ui.world.playerId) return;
-      if (ui.world.playerPrompt && ui.world.playerPrompt.valid && ui.world.playerPrompt.kind === "allydefense") {
-        flashMessage("외교 결정(동맹국 방어)을 먼저 선택하세요.");
-        return;
-      }
-      ui.world.tick();
-      SaveLib.autosave(ui.world);
-      renderAll();
-      flashMessage("턴 종료 — 세계가 움직였습니다. (제" + ui.world.turn + "턴)");
-    });
-    var saveBtn = el("btnSave");
-    if (saveBtn) saveBtn.addEventListener("click", function () {
-      SaveLib.exportFile(ui.world);
-      SaveLib.autosave(ui.world);
-      flashMessage("세이브 파일을 다운로드했습니다.");
-    });
-    var loadBtn = el("btnLoad");
-    if (loadBtn) loadBtn.addEventListener("click", openLoadModal);
-    var newBtn = el("btnNewGame");
-    if (newBtn) newBtn.addEventListener("click", function () {
-      if (ui.world && ui.world.playerId) {
-        if (!confirm("새 국가를 만들면 현재 진행을 잃게 됩니다. 계속하시겠습니까?")) return;
-      }
-      ui.newGameFlow();
-    });
+      if (endBtn) endBtn.addEventListener("click", function () {
+        if (!ui.world || !ui.world.playerId) return;
+        if (ui.world.playerPrompt && ui.world.playerPrompt.valid && ui.world.playerPrompt.kind === "allydefense") {
+          flashMessage("외교 결정(동맹국 방어)을 먼저 선택하세요.");
+          return;
+        }
+        ui.world.tick();
+        SaveLib.autosave(ui.world);
+        renderAll();
+        flashMessage("턴 종료 — 세계가 움직였습니다. (제" + ui.world.turn + "턴)");
+      });
+      var saveBtn = el("btnSave");
+      if (saveBtn) saveBtn.addEventListener("click", function () {
+        SaveLib.exportFile(ui.world);
+        SaveLib.autosave(ui.world);
+        flashMessage("세이브 파일을 다운로드했습니다.");
+      });
+      var loadBtn = el("btnLoad");
+      if (loadBtn) loadBtn.addEventListener("click", openLoadModal);
+      var newBtn = el("btnNewGame");
+      if (newBtn) newBtn.addEventListener("click", function () {
+        if (ui.world && ui.world.playerId) {
+          if (!confirm("새 국가를 만들면 현재 진행을 잃게 됩니다. 계속하시겠습니까?")) return;
+        }
+        ui.newGameFlow();
+      });
   }
 
   /* ---------- 전체 렌더링 ---------- */
@@ -96,6 +101,21 @@
     renderPromptBar();
     renderTab();
     renderNewsMini();
+    renderLegend();
+  }
+
+  function renderLegend() {
+    var box = el("legend");
+    if (!box || !ui.world) return;
+    var ids = Object.keys(ui.world.countries).sort();
+    var html = '<span class="lg"><i style="background:#3a4350"></i>무인</span>';
+    for (var i = 0; i < ids.length; i++) {
+      var c = ui.world.countries[ids[i]];
+      var short = String(c.name).split(" ")[0].slice(0, 5);
+      html += '<span class="lg"><i style="background:' + esc(c.color) + '"></i>' + esc(short) + '</span>';
+    }
+    html += '<span class="lg"><i class="stripe"></i>점령지</span>';
+    box.innerHTML = html;
   }
 
   function renderHeader() {
@@ -123,7 +143,7 @@
     var svg = el("mapSvg");
     if (!svg || !ui.world) return;
     var w = ui.world;
-    var W = 9, H = 6;
+    var W = w.cols || D.COLS || 9, H = w.rows || D.ROWS || 6;
     var vbW = D.SIZE * Math.sqrt(3) * (W + 0.5) + D.SIZE * 2 + 20;
     var vbH = D.SIZE * 1.5 * (H - 1) + D.SIZE * 2 + 20;
     svg.setAttribute("viewBox", "0 0 " + vbW.toFixed(1) + " " + vbH.toFixed(1));
@@ -1149,6 +1169,10 @@
       });
     }
     root.querySelectorAll("[data-close='1']").forEach(function (b) {
+      // 배경(modal-back)은 본인 클릭(바깥 영역)일 때만 닫힌다.
+      // back 자체에 data-close='1'이 붙는 모달이 있어, back을 포함하면
+      // 모달 내부 클릭이 버블링되어 창이 즉시 닫히는 버그가 있었다.
+      if (b === back) return;
       b.addEventListener("click", function () { closeModal(); });
     });
   }
@@ -1186,6 +1210,11 @@
       '<option>연방 공화국</option><option>민주공화국</option><option>군사정권</option></select></label>' +
       '<label>국가 색상<input type="color" id="ngColor" value="#4A90E2"></label>' +
       '</div>' +
+      '<div class="section"><div class="section-t">세계 설정 <span class="sub">슬라이더로 지도 모양을 정하세요</span></div>' +
+      '<div class="row"><label>지도 크기 <b id="vGridSize">표준 9×6</b></label><input type="range" min="0" max="2" step="1" value="1" data-ng="gridSize"></div>' +
+      '<div class="row"><label>국가 수 (AI) <b id="vCountryCount">7</b></label><input type="range" min="3" max="7" step="1" value="7" data-ng="countryCount"></div>' +
+      '<div class="row"><label>영토 포화도 <b id="vDensity">90%</b></label><input type="range" min="40" max="95" step="5" value="90" data-ng="density"></div>' +
+      '</div>' +
       '<div class="section"><div class="section-t">국가 성향</div>' +
       '<div class="row"><label>군국주의 <b id="vMil">50</b></label><input type="range" min="0" max="100" value="50" data-ng="mil"></div>' +
       '<div class="row"><label>외교성 <b id="vDip">50</b></label><input type="range" min="0" max="100" value="50" data-ng="dip"></div>' +
@@ -1198,12 +1227,23 @@
       '<button data-close="1">나중에</button></div></div></div>';
 
     var modal = openModalHTML(html);
+    /* 이전에 설정한 세계 옵션 복원 */
+    loadWorldOpts();
     var mv = modal.querySelectorAll("[data-ng]");
     mv.forEach(function (inp) {
       inp.addEventListener("input", function () {
-        var id = "v" + capFirst(inp.getAttribute("data-ng"));
+        var key = inp.getAttribute("data-ng");
+        var id = "v" + capFirst(key);
         var l = document.getElementById(id);
-        if (l) l.textContent = inp.value;
+        if (!l) return;
+        if (key === "gridSize") {
+          var p = D.MAP_SIZE_PRESETS[parseInt(inp.value, 10) || 0];
+          l.textContent = p ? p.label : inp.value;
+        } else if (key === "density") {
+          l.textContent = inp.value + "%";
+        } else {
+          l.textContent = inp.value;
+        }
       });
     });
     modal.querySelector("[data-ngnext]").addEventListener("click", function () {
@@ -1213,6 +1253,7 @@
       if (!name) { flashMessage("국가 이름을 입력하세요."); return; }
       if (!capital) capital = name + " 수도";
       if (!leader) leader = "국가 원수";
+      var gift = gridOptionsFromInputs();
       ui.ngDraft = {
         name: name,
         capital: capital,
@@ -1224,10 +1265,14 @@
           aggression: inputV("agg"), isolation: inputV("iso")
         }
       };
+      saveWorldOpts();
       closeModal();
+      /* 선택한 지도 설정으로 세계 재생성 */
+      ui.world = new World({ grid: gift });
+      ui.world.refreshGoals();
       ui.mapMode = "found";
       ui.foundRegion = null;
-      renderMap();
+      renderAll();
       showFoundPanel(ui.ngDraft);
     });
   }
@@ -1237,6 +1282,35 @@
   }
   function capFirst(s) {
     return s.charAt(0).toUpperCase() + s.slice(1);
+  }
+
+  /* 세계 설정: 슬라이더 → 그리드 구성 */
+  function gridOptionsFromInputs() {
+    var si = clamp(inputV("gridSize") || 0, 0, D.MAP_SIZE_PRESETS.length - 1);
+    var preset = D.MAP_SIZE_PRESETS[si];
+    var n = clamp(inputV("countryCount") || 7, 3, D.DEFAULT_COUNTRY_IDS.length);
+    var density = clamp(inputV("density") || 90, 40, 95);
+    return { cols: preset.cols, rows: preset.rows, countryIds: D.DEFAULT_COUNTRY_IDS.slice(0, n), density: density };
+  }
+  var WORLD_OPT_KEY = "vcsim_world_opts";
+  function saveWorldOpts() {
+    try {
+      localStorage.setItem(WORLD_OPT_KEY, JSON.stringify({
+        gridSize: inputV("gridSize"), countryCount: inputV("countryCount"), density: inputV("density")
+      }));
+    } catch (e) {}
+  }
+  function loadWorldOpts() {
+    var o = null;
+    try { o = JSON.parse(localStorage.getItem(WORLD_OPT_KEY) || "null"); } catch (e) {}
+    if (!o) return;
+    ["gridSize", "countryCount", "density"].forEach(function (k) {
+      var inp = document.querySelector('[data-ng="' + k + '"]');
+      if (inp && o[k] !== undefined && o[k] !== null) {
+        inp.value = o[k];
+        inp.dispatchEvent(new Event("input", { bubbles: true }));
+      }
+    });
   }
 
   function showFoundPanel(draft) {
@@ -1275,7 +1349,7 @@
     panel.querySelector("#foundBack").addEventListener("click", function () {
       panel.remove();
       ui.mapMode = "view";
-      renderMap();
+      openNewGameModal();
     });
   }
 

@@ -62,7 +62,8 @@ window.SIM_DATA = (function () {
     return "r" + row + "c" + col;
   }
 
-  function regionNeighbors(col, row) {
+  function regionNeighbors(col, row, cols, rows) {
+    cols = cols || COLS; rows = rows || ROWS;
     var dirs;
     if (row % 2 === 0) {
       dirs = [[-1, -1], [0, -1], [-1, 0], [1, 0], [-1, 1], [0, 1]];
@@ -72,41 +73,155 @@ window.SIM_DATA = (function () {
     var out = [];
     for (var i = 0; i < dirs.length; i++) {
       var nc = col + dirs[i][0], nr = row + dirs[i][1];
-      if (nc >= 0 && nc < COLS && nr >= 0 && nr < ROWS) out.push(regionId(nc, nr));
+      if (nc >= 0 && nc < cols && nr >= 0 && nr < rows) out.push(regionId(nc, nr));
     }
     return out;
   }
 
-  function isCoast(col, row) {
-    return col === 0 || col === COLS - 1 || row === 0 || row === ROWS - 1;
+  function isCoast(col, row, cols, rows) {
+    cols = cols || COLS; rows = rows || ROWS;
+    return col === 0 || col === cols - 1 || row === 0 || row === rows - 1;
   }
 
-  /* ---------- 지역 객체 생성 ---------- */
-  var regionsById = {};
-  var neutralRegions = [];
-  var idx = 0;
-  for (var r = 0; r < ROWS; r++) {
-    for (var c = 0; c < COLS; c++) {
-      var id = regionId(c, r);
-      var code = LAYOUT[r][c];
-      regionsById[id] = {
-        id: id,
-        col: c,
-        row: r,
-        name: REGION_NAMES[idx],
-        owner: null,                 // 국가 id
-        neutral: code === ".",
-        startOwner: code === "." ? null : (CODE_TO_ID[code] || null),
-        coast: isCoast(c, r),
-        points: hexCorners(c, r),
-        cx: hexCenter(c, r).x,
-        cy: hexCenter(c, r).y,
-        neighbors: regionNeighbors(c, r)
-      };
-      if (code === ".") neutralRegions.push(id);
-      idx++;
-    }
+  /* ---------- 지역 이름 생성 (임의 크기 맵용) ---------- */
+  var NAME_PART = ["벨", "세", "부", "아르", "크라", "루", "네", "토", "엘", "카", "미", "둔", "베", "할", "이", "세이", "파르", "키르", "안사", "펠", "에란", "우르", "니모", "그라", "실란", "헬루", "데이", "자이", "콘", "메리", "손델", "클라프", "이스투", "베트", "옐로", "노르", "사레", "배른", "이델", "실팔", "하나", "미르", "안델", "크레", "오른", "칼레", "페이", "로실", "다루", "세르반", "랄로", "바시", "엘티", "지르", "오스", "바이", "켄달", "프로", "아니"];
+  var TERRAIN = [" 평원", " 산맥", " 분지", " 고원", " 계곡", " 해안", " 곶", " 습지", " 초원", " 저지", " 구릉", " 북부", " 만", " 숲", " 하구", " 고지", " 황야", " 대산맥", " 벌판", " 해협", " 동부", " 광산지대", " 갈림길", " 초지", " 요새지대", " 반도", " 늪", " 포구", " 호반", " 들판", " 섬", " 석호", " 남부", " 사막", " 봉", " 상록림", " 영지", " 성채", " 주"];
+  function regionName(idx, salt) {
+    return NAME_PART[(idx * 5 + salt) % NAME_PART.length] + TERRAIN[(idx * 7 + salt * 3) % TERRAIN.length];
   }
+
+  /* ---------- 맵 프리셋 & 국가 id ---------- */
+  var DEFAULT_COUNTRY_IDS = ["velos", "arcadia", "krandra", "latria", "dortania", "canaria", "esteria"];
+  var MAP_SIZE_PRESETS = [
+    { label: "소형 7×5", cols: 7, rows: 5 },
+    { label: "표준 9×6", cols: 9, rows: 6 },
+    { label: "대형 11×7", cols: 11, rows: 7 }
+  ];
+
+  /* ---------- 지역 객체 생성 (파라메트릭) ---------- */
+  function regionObject(col, row, name, codeOwner, cols, rows) {
+    var startOwner = codeOwner || null;
+    return {
+      id: regionId(col, row), col: col, row: row, name: name,
+      owner: null, neutral: !startOwner, startOwner: startOwner,
+      coast: isCoast(col, row, cols, rows),
+      points: hexCorners(col, row),
+      cx: hexCenter(col, row).x,
+      cy: hexCenter(col, row).y,
+      neighbors: regionNeighbors(col, row, cols, rows)
+    };
+  }
+
+  /* 클래식 9x6 프리셋 (기존 수작업 배치 재현 — 기존 세이브 호환) */
+  function buildClassicGrid() {
+    var regionsById = {}, neutralRegions = [], idx = 0;
+    for (var r = 0; r < ROWS; r++) {
+      for (var c = 0; c < COLS; c++) {
+        var code = LAYOUT[r][c];
+        var id = regionId(c, r);
+        regionsById[id] = regionObject(c, r, REGION_NAMES[idx], code === "." ? null : (CODE_TO_ID[code] || null), COLS, ROWS);
+        if (code === ".") neutralRegions.push(id);
+        idx++;
+      }
+    }
+    return { cols: COLS, rows: ROWS, countryIds: DEFAULT_COUNTRY_IDS.slice(), density: 90, regionsById: regionsById, neutralRegions: neutralRegions };
+  }
+
+  /* 수도 배치: 국가 수만큼 지도에 골고루 놓기 (텅 빈 곳 없이) */
+  function placeCapitals(cols, rows, n) {
+    var pts = [], used = {};
+    for (var i = 0; i < n; i++) {
+      var t = n === 1 ? 0.5 : i / (n - 1);
+      var tx = (i % 2 === 0) ? 0.2 : 0.8;
+      var ty = 0.16 + 0.68 * t;
+      var c0 = Math.min(cols - 1, Math.round(tx * (cols - 1)));
+      var r0 = Math.min(rows - 1, Math.round(ty * (rows - 1)));
+      var placed = false;
+      for (var rad = 0; rad < Math.max(cols, rows) && !placed; rad++) {
+        for (var dr = -rad; dr <= rad && !placed; dr++) {
+          for (var dc = -rad; dc <= rad && !placed; dc++) {
+            if (Math.max(Math.abs(dr), Math.abs(dc)) !== rad) continue;
+            var nc = c0 + dc, nr = r0 + dr;
+            if (nc >= 0 && nc < cols && nr >= 0 && nr < rows) {
+              var key = regionId(nc, nr);
+              if (!used[key]) { used[key] = 1; pts.push({ c: nc, r: nr }); placed = true; }
+            }
+          }
+        }
+      }
+      if (!placed) break;
+    }
+    return pts;
+  }
+
+  /* 임의 크기 맵 생성: 수도 중심 블록 + 중립 밀도 조절 */
+  function buildGeneratedGrid(cols, rows, countryIds, density) {
+    var caps = placeCapitals(cols, rows, countryIds.length);
+    var cells = [];
+    for (var r = 0; r < rows; r++) {
+      for (var c = 0; c < cols; c++) cells.push({ c: c, r: r });
+    }
+    /* 거리 기반 소유 할당 (가장 가까운 수도) */
+    var ownerIdx = new Array(cells.length);
+    var dist = new Array(cells.length);
+    for (var i = 0; i < cells.length; i++) {
+      var best = -1, bestD = Infinity;
+      for (var k = 0; k < caps.length; k++) {
+        var dx = cells[i].c - caps[k].c, dy = cells[i].r - caps[k].r;
+        var d = dx * dx + dy * dy;
+        if (d < bestD) { bestD = d; best = k; }
+      }
+      ownerIdx[i] = best;
+      dist[i] = bestD;
+    }
+    /* 목표 밀도까지 중립 전환 (수도는 유지, 먼 곳부터) */
+    var total = cells.length;
+    var targetClaim = Math.max(countryIds.length * 2, Math.round(total * density / 100));
+    var order = [];
+    for (var j = 0; j < cells.length; j++) {
+      var isCap = false;
+      for (var ck = 0; ck < caps.length; ck++) {
+        if (cells[j].c === caps[ck].c && cells[j].r === caps[ck].r) { isCap = true; break; }
+      }
+      if (!isCap) order.push(j);
+    }
+    order.sort(function (a, b) { return dist[b] - dist[a]; });
+    var claimed = cells.length;
+    for (var o = 0; o < order.length && claimed > targetClaim; o++) {
+      ownerIdx[order[o]] = -1;
+      claimed--;
+    }
+    /* 지역 객체 생성 */
+    var regionsById = {}, neutralRegions = [];
+    for (var ci = 0; ci < cells.length; ci++) {
+      var cell = cells[ci];
+      var owner = ownerIdx[ci] >= 0 ? countryIds[ownerIdx[ci]] : null;
+      var id = regionId(cell.c, cell.r);
+      regionsById[id] = regionObject(cell.c, cell.r, regionName(ci, cell.c + cell.r * 3), owner, cols, rows);
+      if (!owner) neutralRegions.push(id);
+    }
+    return { cols: cols, rows: rows, countryIds: countryIds.slice(), density: density, regionsById: regionsById, neutralRegions: neutralRegions };
+  }
+
+  function sameIds(a, b) {
+    if (!a || !b || a.length !== b.length) return false;
+    for (var i = 0; i < a.length; i++) if (a[i] !== b[i]) return false;
+    return true;
+  }
+
+  /* 최종 그리드 생성 (기본값: 표준 9x6 클래식) */
+  function buildGrid(opts) {
+    opts = opts || {};
+    var cols = opts.cols || COLS, rows = opts.rows || ROWS;
+    var ids = opts.countryIds || DEFAULT_COUNTRY_IDS.slice();
+    var density = opts.density === undefined ? 90 : clamp(opts.density, 40, 95);
+    if (cols === COLS && rows === ROWS && density >= 90 && sameIds(ids, DEFAULT_COUNTRY_IDS)) {
+      return buildClassicGrid();
+    }
+    return buildGeneratedGrid(cols, rows, ids, density);
+  }
+
+  var defaultGrid = buildGrid(null);
 
   /* ---------- 국가 프리셋 ---------- */
   var countries = [
@@ -294,12 +409,15 @@ window.SIM_DATA = (function () {
   return {
     COLS: COLS, ROWS: ROWS, SIZE: SIZE,
     LAYOUT: LAYOUT,
-    regionsById: regionsById,
-    neutralRegions: neutralRegions,
+    regionsById: defaultGrid.regionsById,
+    neutralRegions: defaultGrid.neutralRegions,
     regionId: regionId,
     hexCenter: hexCenter,
     hexCorners: hexCorners,
     regionNeighbors: regionNeighbors,
+    buildGrid: buildGrid,
+    MAP_SIZE_PRESETS: MAP_SIZE_PRESETS,
+    DEFAULT_COUNTRY_IDS: DEFAULT_COUNTRY_IDS,
     countries: countries,
     casusBelli: casusBelli,
     events: events,

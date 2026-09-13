@@ -44,10 +44,14 @@
 
     self.dayEnd = false;
 
-    /* 지역 복원 */
-    var regKeys = Object.keys(D.regionsById);
+    /* 지역 생성 (맵 설정 반영) */
+    var grid = D.buildGrid(seed.grid);
+    self.cols = grid.cols;
+    self.rows = grid.rows;
+    self.gridCfg = { cols: grid.cols, rows: grid.rows, countryIds: grid.countryIds.slice(), density: grid.density };
+    var regKeys = Object.keys(grid.regionsById);
     for (var i = 0; i < regKeys.length; i++) {
-      var src = D.regionsById[regKeys[i]];
+      var src = grid.regionsById[regKeys[i]];
       self.regions[src.id] = {
         id: src.id, col: src.col, row: src.row, name: src.name,
         coast: src.coast, points: src.points, cx: src.cx, cy: src.cy,
@@ -58,8 +62,11 @@
       if (src.neutral) self.neutralRegions.push(src.id);
     }
 
-    /* 국가 생성 */
-    var countryList = D.countries;
+    /* 국가 생성 (선택된 국가 수만큼) */
+    var countryList = [];
+    for (var di = 0; di < D.countries.length; di++) {
+      if (grid.countryIds.indexOf(D.countries[di].id) >= 0) countryList.push(D.countries[di]);
+    }
     for (var k = 0; k < countryList.length; k++) {
       var c = new C(countryList[k], self);
       self.countries[c.id] = c;
@@ -1261,6 +1268,7 @@
       turn: self.turn, date: self.date, era: self.era,
       tension: self.tension, warCount: self.warCount, worldPeace: self.worldPeace,
       playerId: self.playerId,
+      grid: self.gridCfg,
       countries: countries,
       regions: regions,
       alliances: self.alliances,
@@ -1274,7 +1282,8 @@
       turn: data.turn, date: data.date, era: data.era,
       tension: data.tension, warCount: data.warCount, worldPeace: data.worldPeace,
       playerId: data.playerId, wars: data.wars || [], alliances: data.alliances || [],
-      news: data.news || [], restore: true, regions: data.regions
+      news: data.news || [], restore: true, regions: data.regions,
+      grid: data.grid   // 옛 세이브(9x6)는 grid 없음 → 기본값 클래식 재현
     };
     var w = new World(seed);
     // 국가 복구
