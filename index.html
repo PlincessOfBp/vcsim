@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>가상국가 전쟁 시뮬레이션</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="app">
+
+  <header class="topbar">
+    <div class="brand">🌍 <b>가상국가 전쟁 시뮬레이션</b></div>
+    <div class="hinfo">
+      <span class="hval" id="hDate">—</span>
+      <span class="hval" id="hTurn">제1턴</span>
+      <span class="hval" id="hEra">평화기</span>
+      <span class="hval" id="hPeace">세계 평화도 -</span>
+    </div>
+  </header>
+
+  <div id="promptBar" class="prompt-bar"></div>
+
+  <main class="layout">
+    <section class="map-panel">
+      <div class="map-head">
+        <span>🗺️ 세계지도</span>
+        <span class="map-hint" id="mapHint">국가를 클릭하면 정보를 볼 수 있습니다</span>
+      </div>
+      <div class="map-wrap">
+        <svg id="mapSvg" viewBox="0 0 640 420"></svg>
+      </div>
+      <div class="legend">
+        <span class="lg"><i style="background:#3a4350"></i>무인</span>
+        <span class="lg"><i style="background:#c0392b"></i>벨로스</span>
+        <span class="lg"><i style="background:#4A90E2"></i>아르카디아</span>
+        <span class="lg"><i style="background:#8e44ad"></i>크산드라</span>
+        <span class="lg"><i style="background:#16a085"></i>라트리아</span>
+        <span class="lg"><i style="background:#d35400"></i>도르타니아</span>
+        <span class="lg"><i style="background:#2ecc71"></i>카나리아</span>
+        <span class="lg"><i style="background:#f39c12"></i>에스테르</span>
+        <span class="lg"><i class="stripe"></i>점령지</span>
+      </div>
+    </section>
+
+    <aside class="side-panel">
+      <div id="tabContent" class="tab-content">
+        <div class="panel-note">로딩 중...</div>
+      </div>
+      <div class="news-mini">
+        <div class="news-mini-tit">📰 최근 세계 뉴스</div>
+        <div id="newsMini"></div>
+      </div>
+    </aside>
+  </main>
+
+  <footer class="footer">
+    <button id="btnEndTurn" class="primary">⏩ 턴 종료</button>
+    <button id="btnSave">💾 저장</button>
+    <button id="btnLoad">📂 불러오기</button>
+    <button id="btnNewGame">🎮 새 게임</button>
+  </footer>
+
+</div>
+
+<div id="toast" class="toast"></div>
+
+<script src="js/data.js"></script>
+<script src="js/country.js"></script>
+<script src="js/world.js"></script>
+<script src="js/save.js"></script>
+<script src="js/ui.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
