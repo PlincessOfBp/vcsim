@@ -556,6 +556,8 @@
     var m = "statusquo";
     if (mode === "cede") m = "cede";
     if (mode === "attrition-cede" && myAdv > 20) m = "cede";
+    // 공격측이 점령지와 우위를 확보한 상황에서는 영토 양도로 종결 (점령 성과가 휴전으로 증발하지 않도록)
+    if ((w.capturedByA || []).length > 0 && w.progress >= 0) m = "cede";
     if (defeatedByOccupation && side === "def") m = "cede";
 
     // 상대가 받아들일 확률 (이미 밀리고 있으면 기꺼이 수락)
@@ -573,16 +575,18 @@
   World.prototype.autoResolveWar = function (w) {
     var self = this;
     var A = self.countries[w.attackerId], B = self.countries[w.defenderId];
+    var captured = (w.capturedByA || []).length;
     // 진행 상황에 따른 종결 형태
-    if (w.progress > 40 && (w.exhaustionD > 55) ) {
+    if (w.progress > 40 && (w.exhaustionD > 55)) {
       self.endWar(w, "cede");
     } else if (w.progress < -30 && w.exhaustionA > 50) {
       // 공격측이 밀리고 있음 -> 공격측 후퇴, 이전 상태 회복
       self.endWar(w, "statusquo");
     } else if (w.exhaustionA > 70 && w.exhaustionD > 60) {
-      self.endWar(w, "statusquo");
+      // 양측 지친 상태: 공격측이 점령지를 확보했으면 영구 편입, 아니면 원상복구
+      self.endWar(w, (captured > 0 && w.progress >= -10) ? "cede" : "statusquo");
     } else if (w.exhaustionA > 85 || w.exhaustionD > 85) {
-      self.endWar(w, "statusquo");
+      self.endWar(w, (captured > 0 && w.progress >= -10) ? "cede" : "statusquo");
     } else {
       return false;
     }
