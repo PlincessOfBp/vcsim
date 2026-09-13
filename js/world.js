@@ -1244,7 +1244,6 @@
     establishTradePact(this, a, b);
     return true;
   };
-  World.prototype.news = function (t, ti, b, im) { this.addNews(t, ti, b, im); };
   World.prototype.atWar = function (a, b) { return this.isAtWar(a, b); };
   World.prototype.warsList = function () { return this.wars; };
   World.prototype.adjustRelationPublic = World.prototype.relChange;

@@ -341,7 +341,7 @@
         w.addWarParticipant(war.id, "player", myAllySide);
         var enemy = myAllySide === "def" ? war.attackerId : war.defenders[0];
         w.relChange("player", enemy, -25);
-        w.news("전쟁", "⚔️ " + me.name + "이 " + war.name + "에 참전한다!", me.name + "은 상호방위 조약에 따라 동맹국 " + ally.name + "을 지원하기 위해 전쟁에 개입했다.", 1);
+        w.addNews("전쟁", "⚔️ " + me.name + "이 " + war.name + "에 참전한다!", me.name + "은 상호방위 조약에 따라 동맹국 " + ally.name + "을 지원하기 위해 전쟁에 개입했다.", 1);
         flashMessage("전쟁에 참전했습니다!");
         break;
       }
@@ -350,7 +350,7 @@
         me.treasury -= cost;
         ally.treasury += cost;
         w.relChange("player", ally.id, 4);
-        w.news("외교", me.name + "이 동맹국 " + ally.name + "에 지원금 " + fmt(cost) + "억을 보냈다.", "동맹국의 전시 체제 유지를 돕기 위한 지원이다.", 3);
+        w.addNews("외교", me.name + "이 동맹국 " + ally.name + "에 지원금 " + fmt(cost) + "억을 보냈다.", "동맹국의 전시 체제 유지를 돕기 위한 지원이다.", 3);
         break;
       }
       case "arms": {
@@ -358,12 +358,12 @@
         me.treasury -= acost;
         ally.military.equipment = clamp(ally.military.equipment + 3);
         w.relChange("player", ally.id, 3);
-        w.news("군사", me.name + "이 동맹국 " + ally.name + "에 무기를 지원했다.", "동맹국의 군사 장비 보강을 위한 성의로 읽힌다.", 3);
+        w.addNews("군사", me.name + "이 동맹국 " + ally.name + "에 무기를 지원했다.", "동맹국의 군사 장비 보강을 위한 성의로 읽힌다.", 3);
         break;
       }
       case "neutral": {
         w.relChange("player", ally.id, -3);
-        w.news("외교", me.name + "이 동맹국 분쟁에 중립을 선언했다.", "동맹국 " + ally.name + "은 실망감을 나타냈다.", 3);
+        w.addNews("외교", me.name + "이 동맹국 분쟁에 중립을 선언했다.", "동맹국 " + ally.name + "은 실망감을 나타냈다.", 3);
         break;
       }
     }
@@ -909,7 +909,7 @@
         w.relChange(t, c.id, -12);
         var to = w.countries[t];
         to.embargoed = Math.max(to.embargoed, 3);
-        w.news("외교", c.name + "이(가) " + to.name + "에 경제 제재를 가했다.", "무역 제한 조치가 발효되어 양국 경제에 영향을 줄 전망이다.", 3);
+        w.addNews("외교", c.name + "이(가) " + to.name + "에 경제 제재를 가했다.", "무역 제한 조치가 발효되어 양국 경제에 영향을 줄 전망이다.", 3);
         flashMessage("제재를 가했습니다.");
         renderTab(); break;
       }
@@ -922,7 +922,7 @@
           oo.alliances = oo.alliances.filter(function (x) { return x.partner !== c.id; });
           w.alliances = w.alliances.filter(function (x) { return !((x.a === c.id && x.b === t) || (x.a === t && x.b === c.id)); });
           w.relChange(c.id, t, -20);
-          w.news("외교", c.name + "이(가) " + oo.name + "과의 동맹을 탈퇴했다.", "동맹 해지로 인해 양국 관계가 냉각될 전망이다.", 3);
+          w.addNews("외교", c.name + "이(가) " + oo.name + "과의 동맹을 탈퇴했다.", "동맹 해지로 인해 양국 관계가 냉각될 전망이다.", 3);
           flashMessage("동맹에서 탈퇴했습니다.");
         }
         renderTab(); break;
@@ -946,12 +946,12 @@
         c.ai.spies = (c.ai.spies || 0) + 1;
         var tg = w.countries[target];
         /* 정보로 정확도 상승 */
-        w.news("정보", c.name + "의 정보기관이 " + tg.name + "에 대한 첩보 작전을 수행했다.", "정보 신뢰도가 상승해 상대 전력 파악이 용이해졌다.", 3);
+        w.addNews("정보", c.name + "의 정보기관이 " + tg.name + "에 대한 첩보 작전을 수행했다.", "정보 신뢰도가 상승해 상대 전력 파악이 용이해졌다.", 3);
         /* 발각 가능성 */
         if (chanceP(20 - tg.personality.isolation * 0.2)) {
           w.relChange(c.id, target, -15);
           tg.personality.aggression = clamp(tg.personality.aggression + 2);
-          w.news("외교", "첩보 활동 발각!", c.name + "의 정보 활동이 " + tg.name + "에 적발되어 외교적 마찰이 일어났다.", 4);
+          w.addNews("외교", "첩보 활동 발각!", c.name + "의 정보 활동이 " + tg.name + "에 적발되어 외교적 마찰이 일어났다.", 4);
         }
         flashMessage("정보 작전을 완료했습니다. 인텔 탭을 확인하세요.");
         renderTab(); break;
@@ -962,7 +962,7 @@
         c.society.support = clamp(c.society.support + 6);
         c.society.stability = clamp(c.society.stability + 5);
         c.pending.welfare += 1;
-        w.news("정치", c.name + "에서 정치 개혁이 시행됐다.", "국민 여론이 회복되고 정권 안정도가 올라가고 있다.", 3);
+        w.addNews("정치", c.name + "에서 정치 개혁이 시행됐다.", "국민 여론이 회복되고 정권 안정도가 올라가고 있다.", 3);
         flashMessage("개혁을 시행했습니다.");
         renderTab(); break;
       }
@@ -973,7 +973,7 @@
         c.society.stability = clamp(c.society.stability + 3);
         c.society.conflict = clamp(c.society.conflict + 2);
         c.military.morale = clamp(c.military.morale - 3);
-        w.news("정치", c.name + " 정부가 군부 숙청에 나섰다.", "군부 핵심 인사들이 대거 교체될 것으로 보인다.", 2);
+        w.addNews("정치", c.name + " 정부가 군부 숙청에 나섰다.", "군부 핵심 인사들이 대거 교체될 것으로 보인다.", 2);
         flashMessage("군부 숙청을 단행했습니다.");
         renderTab(); break;
       }
@@ -982,7 +982,7 @@
         c.treasury -= 400;
         c.society.security = clamp(c.society.security + 5);
         c.society.conflict = clamp(c.society.conflict - 2);
-        w.news("정치", c.name + "이 경찰력을 대폭 강화했다.", "치안이 개선되며 시민 불안이 가라앉고 있다.", 4);
+        w.addNews("정치", c.name + "이 경찰력을 대폭 강화했다.", "치안이 개선되며 시민 불안이 가라앉고 있다.", 4);
         flashMessage("경찰력을 강화했습니다.");
         renderTab(); break;
       }
@@ -992,7 +992,7 @@
         c.factions.opposition = clamp(c.factions.opposition - 4);
         c.society.stability = clamp(c.society.stability + 4);
         c.society.support = clamp(c.society.support + 2);
-        w.news("정치", c.name + " 여야가 대화에 나섰다.", "야당과의 협상 타결이 기대되고 있다.", 3);
+        w.addNews("정치", c.name + " 여야가 대화에 나섰다.", "야당과의 협상 타결이 기대되고 있다.", 3);
         flashMessage("야당과 협상했습니다.");
         renderTab(); break;
       }
@@ -1002,7 +1002,7 @@
         c.society.stability = clamp(c.society.stability + 14);
         c.society.support = clamp(c.society.support - 3);
         murkPlayer(w, c, 3);
-        w.news("정치", c.name + "이 비상사태를 선포했다.", "국제사회가 우려를 표명하며 인권 상황을 주시하고 있다.", 3);
+        w.addNews("정치", c.name + "이 비상사태를 선포했다.", "국제사회가 우려를 표명하며 인권 상황을 주시하고 있다.", 3);
         flashMessage("비상사태를 선포했습니다.");
         renderTab(); break;
       }
@@ -1065,16 +1065,16 @@
       if (type === "open") {
         t.treasury += amt;
         w.relChange(c.id, targetId, 5);
-        w.news("외교", c.name + "이(가) " + t.name + "에 공개 지원금 " + fmt(amt) + "억을 제공했다.", "양국 관계가 개선될 전망이다.", 3);
+        w.addNews("외교", c.name + "이(가) " + t.name + "에 공개 지원금 " + fmt(amt) + "억을 제공했다.", "양국 관계가 개선될 전망이다.", 3);
         flashMessage("공개 지원을 완료했습니다.");
       } else {
         t.treasury += amt;
         if (chanceP(25)) {
           w.relChange(c.id, targetId, -20);
-          w.news("외교", "⚠️ 비밀 지원 발각", t.name + " 정부가 " + c.name + "의 비밀 지원 사실을 폭로했다! 양국 관계가 급랭됐다.", 1);
+          w.addNews("외교", "⚠️ 비밀 지원 발각", t.name + " 정부가 " + c.name + "의 비밀 지원 사실을 폭로했다! 양국 관계가 급랭됐다.", 1);
           flashMessage("비밀 지원이 발각되었습니다!");
         } else {
-          w.news("정보", c.name + "이(가) " + t.name + "에 비밀 지원을 집행했다.", "외부에 알려지지 않았다.", 4);
+          w.addNews("정보", c.name + "이(가) " + t.name + "에 비밀 지원을 집행했다.", "외부에 알려지지 않았다.", 4);
           flashMessage("비밀 지원이 집행됐습니다.");
         }
       }
