@@ -628,14 +628,15 @@
       A.treasury += repar;
       warResultNews(self, w, "cede", ceded, repar);
     } else {
-      // status quo : 점령지 원상복구
+      // status quo : 점령된 지역은 기정사실화 (현상 유지) — 원상복구를 하지 않음
+      // 실제 통제권을 확보한 쪽이 휴전 후에도 해당 영토를 보유한다.
       for (var j = 0; j < w.capturedByA.length; j++) {
         var rr = self.regions[w.capturedByA[j]];
-        if (rr) { rr.owner = w.defenderId; rr.captured = null; rr.capturedSide = null; }
+        if (rr) { rr.captured = null; rr.capturedSide = null; }
       }
       for (var k = 0; k < w.capturedByD.length; k++) {
         var rrr = self.regions[w.capturedByD[k]];
-        if (rrr) { rrr.owner = w.attackerId; rrr.captured = null; rrr.capturedSide = null; }
+        if (rrr) { rrr.captured = null; rrr.capturedSide = null; }
       }
       warResultNews(self, w, "statusquo", [], 0);
     }
@@ -666,7 +667,7 @@
         : B.name + "은(는) 배상금 " + fmt(repar) + "억의 지불에 합의했다.";
       self.addNews("전쟁", "🕊️ " + w.name + " 종전! " + A.name + "이 승리했다.", body + " 현지에서는 휴전과 동시에 복구 작업이 시작될 예정이다.", 1);
     } else {
-      self.addNews("전쟁", "🕊️ " + w.name + " 휴전 — 원상 회복", "양측이 사상자를 받아들인 채 현상 유지로 전쟁을 마무리했다. 긴장은 여전히 가라앉지 않고 있다.", 2);
+      self.addNews("전쟁", "🕊️ " + w.name + " 휴전 — 현 상태 유지", "양측이 사상자를 받아들인 채 기존에 장악한 영토를 그대로 둔 현상 유지 조약으로 전쟁을 마무리했다. 긴장은 여전히 가라앉지 않고 있다.", 2);
     }
   }
 
